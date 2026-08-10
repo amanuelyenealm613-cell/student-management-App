@@ -1,145 +1,140 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'profile_screen.dart';
-import 'admin_settings_screen.dart';
-import 'login_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  final bool isDarkMode;
+  final ValueChanged<bool> onThemeChanged;
 
-  void _addStudent(String name) async {
-    await FirebaseFirestore.instance.collection('students').add({
-      'fullName': name,
-      'registrationCode': '2116',
-      'email': 'student_${DateTime
-          .now()
-          .millisecondsSinceEpoch}@school.com',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  void _removeStudent(String docId) async {
-    await FirebaseFirestore.instance.collection('students').doc(docId).delete();
-  }
+  const HomeScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.onThemeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ዋናው የትምህርት ቤት ገጽ'),
+        title: const Text('Dashboard'),
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.blue,
         actions: [
+          // የ ዳርክ እና ላይት ሞድ መቀየሪያ ቁልፍ
           IconButton(
-            icon: const Icon(Icons.admin_panel_settings),
-            tooltip: 'የትምህርት ቤት ቅንብር',
-            onPressed: () =>
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AdminSettingsScreen()),
-                ),
+            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            onPressed: () => onThemeChanged(!isDarkMode),
           ),
           IconButton(
             icon: const Icon(Icons.person),
-            tooltip: 'ፕሮፋይል',
-            onPressed: () =>
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                ),
+            onPressed: () => Navigator.pushNamed(context, '/profile'),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'ውጣ',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
-            },
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.pushNamed(context, '/admin-settings'),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(15.0),
-            child: Text(
-              'የተማሪዎች ዝርዝር (Firebase Realtime)',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          children: [
+            _buildCard(
+              context,
+              'Students',
+              Icons.school,
+              Colors.blue,
+                  () => _showPageDialog(context, 'Students Management'),
             ),
-          ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('students')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('ምንም የተመዘገበ ተማሪ የለም'));
-                }
-
-                final docs = snapshot.data!.docs;
-
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final docId = docs[index].id;
-
-                    return ListTile(
-                      leading: const CircleAvatar(child: Icon(Icons.person)),
-                      title: Text(data['fullName'] ?? 'ስም የለውም'),
-                      subtitle: Text('ኢሜይል: ${data['email'] ?? ''}'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _removeStudent(docId),
-                      ),
-                    );
-                  },
-                );
-              },
+            _buildCard(
+              context,
+              'Teachers',
+              Icons.person_outline,
+              Colors.green,
+                  () => _showPageDialog(context, 'Teachers Management'),
             ),
+            _buildCard(
+              context,
+              'Classes',
+              Icons.menu_book,
+              Colors.orange,
+                  () => _showPageDialog(context, 'Classes Management'),
+            ),
+            _buildCard(
+              context,
+              'Attendance',
+              Icons.check_circle_outline,
+              Colors.purple,
+                  () => _showPageDialog(context, 'Attendance System'),
+            ),
+            _buildCard(
+              context,
+              'Exams',
+              Icons.assignment_outlined,
+              Colors.blue,
+                  () => _showPageDialog(context, 'Exams & Marks'),
+            ),
+            _buildCard(
+              context,
+              'Settings',
+              Icons.settings_outlined,
+              Colors.teal,
+                  () => Navigator.pushNamed(context, '/admin-settings'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard(
+      BuildContext context,
+      String title,
+      IconData icon,
+      Color color,
+      VoidCallback onTap,
+      ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: color.withOpacity(0.15),
+              child: Icon(icon, size: 32, color: color),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPageDialog(BuildContext context, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text('የ $title ገጽ በቅርቡ ሙሉ በሙሉ ይሰራል!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          TextEditingController nameController = TextEditingController();
-          showDialog(
-            context: context,
-            builder: (context) =>
-                AlertDialog(
-                  title: const Text('አዲስ ተማሪ ጨምር'),
-                  content: TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(hintText: "የተማሪ ስም"),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('ሰርዝ'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (nameController.text.isNotEmpty) {
-                          _addStudent(nameController.text);
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: const Text('ጨምር'),
-                    ),
-                  ],
-                ),
-          );
-        },
-        child: const Icon(Icons.add),
       ),
     );
   }
